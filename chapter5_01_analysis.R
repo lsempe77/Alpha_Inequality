@@ -725,3 +725,22 @@ interactions::interact_plot(gdp.fit.lmer.18.cv.4,modx = ineq.alpha,
                             x.label = "Country Segregation (Alpha)",
                             y.label = "PISA score",
                             legend.main = "School Alpha")
+
+v1.gdp<-as.data.frame(vif(gdp.fit.lmer.18.cv.00)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(1)" =GVIF)
+
+v2.gdp<-as.data.frame(vif(gdp.fit.lmer.18.cv.0)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(2)" =GVIF)
+
+v3.gdp<-as.data.frame(vif(gdp.fit.lmer.18.cv.1)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(3)" =GVIF)
+
+v4.gdp<-as.data.frame(vif(gdp.fit.lmer.18.cv.2)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(4)" =GVIF)
+
+v5.gdp<-as.data.frame(vif(gdp.fit.lmer.18.cv.4)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(6)" =GVIF)
+
+vif.final.gdp<-v2.gdp %>% full_join(v3.gdp) %>% full_join(v4.gdp) %>% full_join(v5.gdp)
+
+write.csv(vif.final.gdp,"vif.final.gdp.csv")
