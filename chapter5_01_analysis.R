@@ -121,7 +121,8 @@ pisa2018<-pisa2018[complete.cases(pisa2018),]
 #
 
 disim<-pisa2018 %>% group_by(CNT) %>%
-  mutate (median.HOMEPOS = median(HOMEPOS,na.rm=T)) %>% group_by(CNT, CNTSCHID)%>%
+  mutate (median.HOMEPOS = median(HOMEPOS,na.rm=T)) %>% 
+  group_by(CNT, CNTSCHID)%>%
   summarise(
     count.low = length(HOMEPOS[HOMEPOS<=median.HOMEPOS]),
     count.high = length(HOMEPOS[HOMEPOS>=median.HOMEPOS]))
@@ -148,6 +149,7 @@ library(GGally)
 duncan <- duncan %>% rename(Country_School_Segregation_Alpha=mean.A,
                             Country_School_Gini= Country.Gini.school_HOMEPOS,
                             Country_School_Segregation_Duncan=duncan.median )
+
 
 ggpairs(duncan[,c(5,3,6)]) +
   theme_minimal()
@@ -242,25 +244,25 @@ memory.limit(size=30000)
 #
 
 
-fit.lmer.18.cv.00<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.00<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                          AGE + REPEAT  + Tipo.escola +
                          Area+  school.HOMEPOS + HOMEPOS  + ineq.alpha + (1|CNT),
                        data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.0<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.0<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                          AGE + REPEAT  + Tipo.escola +
                          Area+  school.HOMEPOS + HOMEPOS  + mean.A + (1|CNT),
                        data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.1<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.1<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                             AGE + REPEAT  + Tipo.escola +
                             Area+  school.HOMEPOS + HOMEPOS  + ineq.alpha + mean.A + (1|CNT),
                           data= pisa2018, weights = std.weight.final)
 
 library(car)
-vif(fit.lmer.18.cv.1)
 
-fit.lmer.18.cv.2<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+
+fit.lmer.18.cv.2<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                       AGE + REPEAT  + Tipo.escola +
                       Area+ school.HOMEPOS + HOMEPOS  + mean.A*ineq.alpha + (1|CNT),
                     data= pisa2018, weights = std.weight.final)
@@ -270,27 +272,28 @@ vif(fit.lmer.18.cv.2)
 performance::check_collinearity(fit.lmer.18.cv.2)
 
 
-fit.lmer.18.cv.3<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.3<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                          AGE + REPEAT  + Tipo.escola +
                          Area+ school.HOMEPOS + HOMEPOS + school.HOMEPOS  *mean.A+ineq.alpha + (1|CNT),
                        data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.4<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.4<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                          AGE + REPEAT  + Tipo.escola +
                          Area+ HOMEPOS+ school.HOMEPOS + school.HOMEPOS  * mean.A*ineq.alpha + (1|CNT),
                        data= pisa2018, weights = std.weight.final)
 
 performance::check_collinearity(fit.lmer.18.cv.4)
 
+
+sjstats::r2(fit.lmer.18.cv.00)
 vif(fit.lmer.18.cv.4)
 
-performance::check_collinearity()
 
 sjstats::r2(fit.lmer.18.cv.00)
 
 summary(fit.lmer.18.cv.4)
 
-fit.lmer.18.cv.gini<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.gini<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                          AGE + REPEAT  + Tipo.escola +
                          Area+ HOMEPOS+ school.HOMEPOS +
                            school.HOMEPOS  * Country.Gini.school_HOMEPOS*Gini + (1|CNT),
@@ -303,13 +306,13 @@ duncan$cv.A<-NULL
 
 pisa2018 <- pisa2018 %>% left_join(duncan)
 
-fit.lmer.18.cv.duncan<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                             AGE + REPEAT  + Tipo.escola +
                             Area+ HOMEPOS+ school.HOMEPOS +
                             school.HOMEPOS  * Country_School_Segregation_Duncan*Gini + (1|CNT),
                           data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.duncan.alpha<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan.alpha<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                               AGE + REPEAT  + Tipo.escola +
                               Area+ HOMEPOS+ school.HOMEPOS +
                               school.HOMEPOS  * Country_School_Segregation_Duncan*ineq.alpha + (1|CNT),
@@ -379,6 +382,32 @@ stargazer::stargazer(fit.lmer.18.cv.00,
                      fit.lmer.18.cv.2,
                      fit.lmer.18.cv.4,  type = "text")
 
+v1<-as.data.frame(vif(fit.lmer.18.cv.00)) %>% select (GVIF) %>% 
+    rownames_to_column(var = "Parameters") %>%   rename("(1)" =GVIF)
+
+v2<-as.data.frame(vif(fit.lmer.18.cv.0)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(2)" =GVIF)
+
+v3<-as.data.frame(vif(fit.lmer.18.cv.1)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(3)" =GVIF)
+
+v4<-as.data.frame(vif(fit.lmer.18.cv.2)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(4)" =GVIF)
+
+v5<-as.data.frame(vif(fit.lmer.18.cv.4)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(6)" =GVIF)
+
+
+
+vif.final<-v1 %>% full_join(v2) %>% full_join(v3) %>% full_join(v4) %>% full_join(v5)
+write.csv(vif.final,"vif.final.csv")
+
+sjstats::r2(fit.lmer.18.cv.00)
+sjstats::r2(fit.lmer.18.cv.0)
+sjstats::r2(fit.lmer.18.cv.1)
+sjstats::r2(fit.lmer.18.cv.2)
+sjstats::r2(fit.lmer.18.cv.4)
+
 gc()
 
 plot_cme(fit.lmer.18.cv.2, effect = "ineq.alpha", condition = c("mean.A"))
@@ -394,177 +423,35 @@ me4<-marginaleffects(fit.lmer.18.cv.4)
 summary(me4$mean.A)
 
 #
-pisa2018 <- pisa2018 %>%
-  arrange(CNT)
-
-variable.names(pisa2018)
-
-cor(pisa2018$mean.A,pisa2018$Country_School_Segregation_Alpha)
-
-brr <- BIFIE.data.jack(data = pisa2018[,c(1:129,131,135,137:139)],
-                       wgt ="std.weight.final",
-                       jktype = "RW_PISA",
-                       pvpre = paste0("PV",1:10),
-                       wgtrep = paste0("W_FSTURWT",1:80),
-                       cdata = F)
-
-fit1 <- BIFIEsurvey::BIFIE.twolevelreg(BIFIEobj=brr,
-dep="MATH",
-formula.fixed=~ Sex + HISCED +IMMIG + Language +
-AGE + REPEAT  + Tipo.escola + Area +
-HOMEPOS + school.HOMEPOS + ineq.alpha ,
-formula.random=~ 1,
-idcluster="CNT",
-wgtlevel1="std.weight.final",
-wgtlevel2 = "one")
-
-gc()
-
-summary (fit1)
-
-fit2 <- BIFIEsurvey::BIFIE.twolevelreg(BIFIEobj=brr,
-dep="MATH",
-formula.fixed=~ Sex + HISCED +IMMIG + Language +
-AGE + REPEAT  + Tipo.escola + Area +
-HOMEPOS + school.HOMEPOS + Country_School_Segregation_Alpha ,
-formula.random=~ 1,
-idcluster="CNT",
-wgtlevel1="std.weight.final",
-wgtlevel2 = "one")
-
-summary(fit2)
-
-fit3 <- BIFIEsurvey::BIFIE.twolevelreg(BIFIEobj=brr,
-dep="MATH",
-formula.fixed=~ Sex + HISCED +IMMIG + Language +
-AGE + REPEAT  + Tipo.escola + Area +
-HOMEPOS + school.HOMEPOS + ineq.alpha + Country_School_Segregation_Alpha ,
-formula.random=~ 1,
-idcluster="CNT",
-wgtlevel1="std.weight.final",
-wgtlevel2 = "one")
-
-gc()
-
-fit4 <- BIFIEsurvey::BIFIE.twolevelreg(BIFIEobj=brr,
-                                       dep="MATH",
-                                       formula.fixed=~ Sex + HISCED +IMMIG + Language +
-                                         AGE + REPEAT  + Tipo.escola + Area +
-                                         HOMEPOS + school.HOMEPOS + ineq.alpha * Country_School_Segregation_Alpha ,
-                                       formula.random=~ 1,
-                                       idcluster="CNT",
-                                       wgtlevel1="std.weight.final",
-                                       wgtlevel2 = "one")
-
-fit5 <- BIFIEsurvey::BIFIE.twolevelreg(BIFIEobj=brr,
-                                       dep="MATH",
-                                       formula.fixed=~ Sex + HISCED +IMMIG + Language +
-                                         AGE + REPEAT  + Tipo.escola + Area +
-                                         HOMEPOS + school.HOMEPOS * ineq.alpha * Country_School_Segregation_Alpha ,
-                                       formula.random=~ 1,
-                                       idcluster="CNT",
-                                       wgtlevel1="std.weight.final",
-                                       wgtlevel2 = "one")
-
-fi1s<-as.data.frame(summary(fit1))
-fi2s<-as.data.frame(summary(fit2))
-fi3s<-as.data.frame(summary(fit3))
-fi4s<-as.data.frame(summary(fit4))
-fi5s<-as.data.frame(summary(fit5))
-
-
-fi1s<-fi1s[,c(1:3,6)]
-fi2s<-fi2s[,c(1:3,6)]
-fi3s<-fi3s[,c(1:3,6)]
-fi4s<-fi4s[,c(1:3,6)]
-fi5s<-fi5s[,c(1:3,6)]
-
-fi1s<-fi1s %>%
-  mutate (est=as.numeric(est),
-          SE = as.numeric(SE),
-          p=as.numeric(p),
-          pv=case_when(p<.001 ~ "***",
-                                    p>.001 & p<.01 ~ "**",
-                                    p<.01 & p<.05 ~ "*",
-                                    T ~ "")) %>%
-  mutate ("(1)" = paste0(est," (",SE,") ",pv)) %>% select(parameter,"(1)")
-
-fi2s<-fi2s %>%
-  mutate (est=as.numeric(est),
-          SE = as.numeric(SE),
-          p=as.numeric(p),
-          pv=case_when(p<.001 ~ "***",
-                       p>.001 & p<.01 ~ "**",
-                       p<.01 & p<.05 ~ "*",
-                       T ~ "")) %>%
-  mutate ("(2)" = paste0(est," (",SE,") ",pv)) %>% select(parameter,"(2)")
-
-fi3s<-fi3s %>%
-  mutate (est=as.numeric(est),
-          SE = as.numeric(SE),
-          p=as.numeric(p),
-          pv=case_when(p<.001 ~ "***",
-                       p>.001 & p<.01 ~ "**",
-                       p<.01 & p<.05 ~ "*",
-                       T ~ "")) %>%
-  mutate ("(3)" = paste0(est," (",SE,") ",pv)) %>% select(parameter,"(3)")
-
-fi4s<-fi4s %>%
-  mutate (est=as.numeric(est),
-          SE = as.numeric(SE),
-          p=as.numeric(p),
-          pv=case_when(p<.001 ~ "***",
-                       p>.001 & p<.01 ~ "**",
-                       p<.01 & p<.05 ~ "*",
-                       T ~ "")) %>%
-  mutate ("(4)" = paste0(est," (",SE,") ",pv)) %>% select(parameter,"(4)")
-
-fi5s<-fi5s %>%
-  mutate (est=as.numeric(est),
-          SE = as.numeric(SE),
-          p=as.numeric(p),
-          pv=case_when(p<.001 ~ "***",
-                       p>.001 & p<.01 ~ "**",
-                       p<.01 & p<.05 ~ "*",
-                       T ~ "")) %>%
-  mutate ("(5)" = paste0(est," (",SE,") ",pv)) %>% select(parameter,"(5)")
-
-
-fitfinal<-fi1s %>% full_join(fi2s) %>% full_join(fi3s) %>% full_join(fi4s) %>% full_join(fi5s)
-
-write.csv(fitfinal,"fitfinal.csv")
-
-
-
 ###
 
 gc()
 
-fit.lmer.18.cv.gini0<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.gini0<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                             AGE + REPEAT  + Tipo.escola +
                             Area+ HOMEPOS+ school.HOMEPOS +
-                            school.HOMEPOS+ Gini + (1|CNT),
+                            school.HOMEPOS + Gini + (1|CNT),
                           data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.gini1<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.gini1<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                             AGE + REPEAT  + Tipo.escola +
                             Area+ HOMEPOS+ school.HOMEPOS +
                             school.HOMEPOS  + Country.Gini.school_HOMEPOS + (1|CNT),
                           data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.gini2<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.gini2<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                             AGE + REPEAT  + Tipo.escola +
                             Area+ HOMEPOS+ school.HOMEPOS +
                             school.HOMEPOS  + Country.Gini.school_HOMEPOS+Gini + (1|CNT),
                           data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.gini3<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.gini3<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                             AGE + REPEAT  + Tipo.escola +
                             Area+ HOMEPOS+ school.HOMEPOS +
                             school.HOMEPOS  + Country.Gini.school_HOMEPOS*Gini + (1|CNT),
                           data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.gini4<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.gini4<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                             AGE + REPEAT  + Tipo.escola +
                             Area+ HOMEPOS+ school.HOMEPOS +
                             school.HOMEPOS  * Country.Gini.school_HOMEPOS*Gini + (1|CNT),
@@ -573,25 +460,25 @@ fit.lmer.18.cv.gini4<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
 
 ##
 
-fit.lmer.18.cv.duncan1<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan1<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                              AGE + REPEAT  + Tipo.escola +
                              Area+ HOMEPOS+ school.HOMEPOS +
                              school.HOMEPOS  + Country_School_Segregation_Duncan + (1|CNT),
                            data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.duncan2<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan2<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                              AGE + REPEAT  + Tipo.escola +
                              Area+ HOMEPOS+ school.HOMEPOS +
                              school.HOMEPOS  + Country_School_Segregation_Duncan+Gini + (1|CNT),
                            data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.duncan3<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan3<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                              AGE + REPEAT  + Tipo.escola +
                              Area+ HOMEPOS+ school.HOMEPOS +
                              school.HOMEPOS  + Country_School_Segregation_Duncan*Gini + (1|CNT),
                            data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.duncan4<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan4<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                              AGE + REPEAT  + Tipo.escola +
                              Area+ HOMEPOS+ school.HOMEPOS +
                              school.HOMEPOS  * Country_School_Segregation_Duncan*Gini + (1|CNT),
@@ -600,19 +487,19 @@ fit.lmer.18.cv.duncan4<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
 
 #
 
-fit.lmer.18.cv.duncan2.a<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan2.a<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                                AGE + REPEAT  + Tipo.escola +
                                Area+ HOMEPOS+ school.HOMEPOS +
                                school.HOMEPOS  + Country_School_Segregation_Duncan+ineq.alpha + (1|CNT),
                              data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.duncan3.a<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan3.a<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                                AGE + REPEAT  + Tipo.escola +
                                Area+ HOMEPOS+ school.HOMEPOS +
                                school.HOMEPOS  + Country_School_Segregation_Duncan*ineq.alpha + (1|CNT),
                              data= pisa2018, weights = std.weight.final)
 
-fit.lmer.18.cv.duncan4.a<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+fit.lmer.18.cv.duncan4.a<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
                                AGE + REPEAT  + Tipo.escola +
                                Area+ HOMEPOS+ school.HOMEPOS +
                                school.HOMEPOS  * Country_School_Segregation_Duncan*ineq.alpha + (1|CNT),
@@ -620,23 +507,78 @@ fit.lmer.18.cv.duncan4.a<-lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
 
 
 
+interactions::interact_plot(fit.lmer.18.cv.duncan4.a,modx = ineq.alpha,
+                            pred = Country_School_Segregation_Duncan,
+                            mod2 = school.HOMEPOS,
+                            alpha = .05, interval = F,
+                            robust = T,
+                            colors = "Qual3",
+                            x.label = "Country Duncan",
+                            y.label = "PISA score",
+                            legend.main = "School Alpha")
 
-stargazer::stargazer(fit.lmer.18.cv.gini0,
-                     fit.lmer.18.cv.gini1,
+stargazer::stargazer(fit.lmer.18.cv.gini1,
                      fit.lmer.18.cv.gini2,
                      fit.lmer.18.cv.gini3,
                      fit.lmer.18.cv.gini4,  type = "text")
 
 
+v1.g<-as.data.frame(vif(fit.lmer.18.cv.gini0)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(1)" =GVIF)
 
+v2.g<-as.data.frame(vif(fit.lmer.18.cv.gini1)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(2)" =GVIF)
+
+v3.g<-as.data.frame(vif(fit.lmer.18.cv.gini2)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(3)" =GVIF)
+
+v4.g<-as.data.frame(vif(fit.lmer.18.cv.gini3)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(4)" =GVIF)
+
+v5.g<-as.data.frame(vif(fit.lmer.18.cv.gini4)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(6)" =GVIF)
+
+vif.final.g<-v2.g %>% full_join(v3.g) %>% full_join(v4.g) %>% full_join(v5.g)
+
+write.csv(vif.final.g,"vif.final.g.csv")
+
+cor(pisa2018$PV5READ,pisa2018$PV8MATH)
 
 stargazer::stargazer(fit.lmer.18.cv.duncan1,
                      fit.lmer.18.cv.duncan2,
                      fit.lmer.18.cv.duncan3,
-                     fit.lmer.18.cv.duncan4,type = "text")
-                     # fit.lmer.18.cv.duncan2.a,
-                     # fit.lmer.18.cv.duncan3.a,
-                     # fit.lmer.18.cv.duncan4.a,
+                     fit.lmer.18.cv.duncan4,
+                     fit.lmer.18.cv.duncan2.a,
+                     fit.lmer.18.cv.duncan3.a,
+                     fit.lmer.18.cv.duncan4.a,type = "text")
+
+
+v1.d<-as.data.frame(vif(fit.lmer.18.cv.duncan1)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(1)" =GVIF)
+
+v2.d<-as.data.frame(vif(fit.lmer.18.cv.duncan2)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(2)" =GVIF)
+
+v3.d<-as.data.frame(vif(fit.lmer.18.cv.duncan3)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(3)" =GVIF)
+
+v4.d<-as.data.frame(vif(fit.lmer.18.cv.duncan4)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(4)" =GVIF)
+
+v5.d<-as.data.frame(vif(fit.lmer.18.cv.duncan2.a)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(5)" =GVIF)
+
+v6.d<-as.data.frame(vif(fit.lmer.18.cv.duncan3.a)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(6)" =GVIF)
+
+v7.d<-as.data.frame(vif(fit.lmer.18.cv.duncan4.a)) %>% select (GVIF) %>% 
+  rownames_to_column(var = "Parameters") %>%   rename("(7)" =GVIF)
+
+vif.final.d<-v1.d %>% full_join(v2.d) %>% full_join(v3.d) %>% 
+  full_join(v4.d) %>% full_join(v5.d )%>% full_join(v6.d) %>% full_join(v7.d)
+
+write.csv(vif.final.d,"vif.final.d.csv")
+
 ##
 
 variable.names(pisa2018)
@@ -702,3 +644,84 @@ flex<-pisa2018 %>% select(CNT,Sex,AGE,REPEAT,HOMEPOS,school.HOMEPOS,PV1READ:PV10
 flextable::save_as_docx(flex,
                         path="C:/Users/LUCAS/Desktop/Chapter 3 Mediation/table1segregation.docx")
 
+###
+
+GDP2015 <- read_excel("C:/Users/LUCAS/Desktop/PISA INEQUALITY/R PISA 0/GDP2015.xls")
+
+GDP2015$...5<-NULL
+
+GDP2015$`Year of GINI`<-NULL
+
+pisa2018 <- pisa2018 %>% left_join(GDP2015)
+
+variable.names(pisa2018)
+
+###
+
+gdp.fit.lmer.18.cv.00<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+                          AGE + REPEAT  + Tipo.escola +
+                          Area+  school.HOMEPOS + HOMEPOS  + ineq.alpha + 
+                          `GNI per capita`     +         `Gini index` +
+                          (1|CNT),
+                        data= pisa2018, weights = std.weight.final)
+
+gdp.fit.lmer.18.cv.0<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+                         AGE + REPEAT  + Tipo.escola +
+                         Area+  school.HOMEPOS + HOMEPOS  + mean.A + 
+                           `GNI per capita`     +         `Gini index` +
+                           (1|CNT),
+                       data= pisa2018, weights = std.weight.final)
+
+gdp.fit.lmer.18.cv.1<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+                         AGE + REPEAT  + Tipo.escola +
+                         Area+  school.HOMEPOS + HOMEPOS  + ineq.alpha + mean.A +
+                           `GNI per capita`     +         `Gini index` +
+                           (1|CNT),
+                       data= pisa2018, weights = std.weight.final)
+
+vif(gdp.fit.lmer.18.cv.1)
+
+gdp.fit.lmer.18.cv.2<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+                         AGE + REPEAT  + Tipo.escola +
+                         Area+ school.HOMEPOS + HOMEPOS  + mean.A*ineq.alpha + 
+                           `GNI per capita`     +         `Gini index` +
+                           (1|CNT),
+                       data= pisa2018, weights = std.weight.final)
+
+vif(gdp.fit.lmer.18.cv.2)
+
+performance::check_collinearity(gdp.fit.lmer.18.cv.2)
+
+
+gdp.fit.lmer.18.cv.3<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+                         AGE + REPEAT  + Tipo.escola +
+                         Area+ school.HOMEPOS + HOMEPOS + school.HOMEPOS  *mean.A+ineq.alpha + 
+                           `GNI per capita`     +         `Gini index` +
+                           (1|CNT),
+                       data= pisa2018, weights = std.weight.final)
+
+gdp.fit.lmer.18.cv.4<-lme4::lmer(PV1MATH ~ Sex + HISCED +IMMIG + Language +
+                         AGE + REPEAT  + Tipo.escola +
+                         Area+ HOMEPOS+ school.HOMEPOS + school.HOMEPOS  * mean.A*ineq.alpha + 
+                           `GNI per capita`     +         `Gini index` +
+                           (1|CNT),
+                       data= pisa2018, weights = std.weight.final)
+
+
+
+stargazer::stargazer(gdp.fit.lmer.18.cv.00,
+                     gdp.fit.lmer.18.cv.0,
+                     gdp.fit.lmer.18.cv.1,
+                     gdp.fit.lmer.18.cv.2,
+                     gdp.fit.lmer.18.cv.4,  type = "text")
+
+
+interactions::interact_plot(gdp.fit.lmer.18.cv.4,modx = ineq.alpha,
+                            pred = mean.A,
+                            mod2 = school.HOMEPOS,
+                            alpha = .05, interval = F,
+                            robust = T,
+                            colors = "Qual3",
+                            x.label = "Country Segregation (Alpha)",
+                            y.label = "PISA score",
+                            legend.main = "School Alpha")
